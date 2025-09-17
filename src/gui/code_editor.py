@@ -123,19 +123,7 @@ class CodeEditor(QPlainTextEdit):
         
         # Set default text
         self.setPlainText(
-            "// LEGv8 Assembly Example with Branches\\n"
-            "// Find maximum of two numbers\\n\\n"
-            "ADDI X1, XZR, #25    // First number\\n"
-            "ADDI X2, XZR, #30    // Second number\\n\\n"
-            "SUBS X4, X1, X2      // Compare X1 - X2\\n"
-            "B.GE first_larger    // Branch if X1 >= X2\\n\\n"
-            "// X2 is larger\\n"
-            "ADD X3, X2, XZR      // X3 = X2\\n"
-            "B end                // Skip to end\\n\\n"
-            "first_larger:\\n"
-            "    ADD X3, X1, XZR  // X3 = X1\\n\\n"
-            "end:\\n"
-            "    STUR X3, [X28, #0] // Store maximum\\n"
+            "// LEGv8 Assembly"
         )
         
     def lineNumberAreaWidth(self):
