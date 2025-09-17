@@ -5,9 +5,10 @@ Contains the primary interface with code editor, register display, and controls
 
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, 
                              QSplitter, QPushButton, QMenuBar, QToolBar, 
-                             QStatusBar, QMessageBox, QTextEdit)
+                             QStatusBar, QMessageBox, QTextEdit, QFileDialog)
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QAction, QFont
+import os
 
 from gui.code_editor import CodeEditor
 from gui.register_panel import RegisterPanel
@@ -27,8 +28,13 @@ class MainWindow(QMainWindow):
         self.compiled_instructions = []
         self.current_instruction_index = 0
         
+        # File tracking
+        self.current_file_path = None
+        self.is_modified = False
+        
         self.init_ui()
         self.setup_timer()
+        self.update_window_title()  # Initialize window title
         
     def init_ui(self):
         """Initialize the user interface"""
@@ -69,6 +75,7 @@ class MainWindow(QMainWindow):
         
         # Code editor
         self.code_editor = CodeEditor()
+        self.code_editor.textChanged.connect(self.on_text_changed)
         layout.addWidget(self.code_editor)
         
         # Control buttons
@@ -147,6 +154,11 @@ class MainWindow(QMainWindow):
         save_action.setShortcut("Ctrl+S")
         save_action.triggered.connect(self.save_file)
         file_menu.addAction(save_action)
+        
+        save_as_action = QAction("Save As...", self)
+        save_as_action.setShortcut("Ctrl+Shift+S")
+        save_as_action.triggered.connect(self.save_file_as)
+        file_menu.addAction(save_as_action)
         
         file_menu.addSeparator()
         
@@ -253,7 +265,7 @@ class MainWindow(QMainWindow):
         if (self.current_instruction_index >= len(self.compiled_instructions) or 
             self.cpu.is_halted):
             self.console.append("Execution complete")
-            return
+            return False  # Return False to indicate execution should stop
             
         try:
             instruction = self.compiled_instructions[self.current_instruction_index]
@@ -261,7 +273,7 @@ class MainWindow(QMainWindow):
             
             if "error" in result:
                 self.console.append(f"✗ Runtime error: {result['error']}")
-                return
+                return False  # Return False to indicate execution should stop
                 
             # Log execution
             self.console.append(f"PC={result['pc']:04X}: {instruction}")
@@ -279,23 +291,35 @@ class MainWindow(QMainWindow):
                 next_instruction = self.compiled_instructions[next_instruction_index]
                 line_num = next_instruction.line_number
                 self.code_editor.highlight_current_line(line_num)
+                return True  # Continue execution
             else:
                 # Program counter is beyond our instructions - program completed
                 self.code_editor.clear_highlight()
                 self.console.append("✓ Program completed")
+                self.cpu.is_halted = True  # Halt the CPU
+                return False  # Return False to indicate execution should stop
                 
         except Exception as e:
             self.console.append(f"✗ Execution error: {str(e)}")
+            return False  # Return False to indicate execution should stop
             
     def run_all(self):
         """Run all remaining instructions"""
         max_instructions = 10000  # Prevent infinite loops
         count = 0
         
-        while (self.current_instruction_index < len(self.compiled_instructions) and 
-               not self.cpu.is_halted and count < max_instructions):
-            self.step_execution()
-            count += 1
+        # Continue execution until program completes or hits limits
+        while count < max_instructions:
+            # Call step_execution and check if we should continue
+            try:
+                should_continue = self.step_execution()
+                if not should_continue:
+                    # Program completed normally or encountered an error
+                    break
+                count += 1
+            except Exception as e:
+                self.console.append(f"✗ Execution error during run all: {str(e)}")
+                break
             
         if count >= max_instructions:
             self.console.append("⚠ Execution stopped: maximum instruction limit reached")
@@ -324,18 +348,124 @@ class MainWindow(QMainWindow):
         
     def new_file(self):
         """Create new file"""
+        # Check if current file needs saving
+        if self.is_modified and not self.prompt_save_changes():
+            return
+            
         self.code_editor.clear()
         self.reset_simulation()
+        self.current_file_path = None
+        self.is_modified = False
+        self.update_window_title()
         
     def open_file(self):
         """Open assembly file"""
-        # TODO: Implement file dialog
-        pass
+        # Check if current file needs saving
+        if self.is_modified and not self.prompt_save_changes():
+            return
+            
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open LEGv8 Assembly File",
+            "",
+            "Assembly Files (*.asm *.s);;All Files (*)"
+        )
+        
+        if file_path:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    content = file.read()
+                    self.code_editor.setPlainText(content)
+                    self.current_file_path = file_path
+                    self.is_modified = False
+                    self.update_window_title()
+                    self.reset_simulation()
+                    
+                    # Show success message
+                    file_name = os.path.basename(file_path)
+                    self.console.append(f"✓ Opened file: {file_name}")
+                    
+            except Exception as e:
+                QMessageBox.critical(self, "Error Opening File", 
+                                   f"Could not open file: {str(e)}")
         
     def save_file(self):
         """Save assembly file"""
-        # TODO: Implement file dialog
-        pass
+        if self.current_file_path:
+            self.save_to_file(self.current_file_path)
+        else:
+            self.save_file_as()
+    
+    def save_file_as(self):
+        """Save assembly file with new name"""
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save LEGv8 Assembly File",
+            "untitled.asm",
+            "Assembly Files (*.asm *.s);;All Files (*)"
+        )
+        
+        if file_path:
+            self.save_to_file(file_path)
+    
+    def save_to_file(self, file_path):
+        """Save content to specified file"""
+        try:
+            content = self.code_editor.toPlainText()
+            with open(file_path, 'w', encoding='utf-8') as file:
+                file.write(content)
+                
+            self.current_file_path = file_path
+            self.is_modified = False
+            self.update_window_title()
+            
+            # Show success message
+            file_name = os.path.basename(file_path)
+            self.console.append(f"✓ Saved file: {file_name}")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error Saving File", 
+                               f"Could not save file: {str(e)}")
+    
+    def prompt_save_changes(self):
+        """Prompt user to save changes if file is modified"""
+        reply = QMessageBox.question(
+            self, 
+            "Save Changes?",
+            "The document has been modified. Do you want to save your changes?",
+            QMessageBox.StandardButton.Save | 
+            QMessageBox.StandardButton.Discard | 
+            QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Save
+        )
+        
+        if reply == QMessageBox.StandardButton.Save:
+            self.save_file()
+            return True
+        elif reply == QMessageBox.StandardButton.Discard:
+            return True
+        else:  # Cancel
+            return False
+    
+    def update_window_title(self):
+        """Update window title with current file name"""
+        if self.current_file_path:
+            file_name = os.path.basename(self.current_file_path)
+            title = f"PyLEGv8 - {file_name}"
+            if self.is_modified:
+                title += "*"
+        else:
+            title = "PyLEGv8 - LEGv8 Assembly Simulator"
+            if self.is_modified:
+                title += "*"
+        
+        self.setWindowTitle(title)
+    
+    def on_text_changed(self):
+        """Handle code editor text changes"""
+        if not self.is_modified:
+            self.is_modified = True
+            self.update_window_title()
         
     def show_help(self):
         """Show help dialog"""
@@ -348,3 +478,10 @@ class MainWindow(QMainWindow):
                          "PyLEGv8 - LEGv8 Assembly Simulator\\n"
                          "Version 0.1.0\\n\\n"
                          "A Python-based simulator for the LEGv8 instruction set.")
+    
+    def closeEvent(self, event):
+        """Handle application close event"""
+        if self.is_modified and not self.prompt_save_changes():
+            event.ignore()
+        else:
+            event.accept()
