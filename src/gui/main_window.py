@@ -253,7 +253,7 @@ class MainWindow(QMainWindow):
         if (self.current_instruction_index >= len(self.compiled_instructions) or 
             self.cpu.is_halted):
             self.console.append("Execution complete")
-            return
+            return False  # Return False to indicate execution should stop
             
         try:
             instruction = self.compiled_instructions[self.current_instruction_index]
@@ -261,7 +261,7 @@ class MainWindow(QMainWindow):
             
             if "error" in result:
                 self.console.append(f"✗ Runtime error: {result['error']}")
-                return
+                return False  # Return False to indicate execution should stop
                 
             # Log execution
             self.console.append(f"PC={result['pc']:04X}: {instruction}")
@@ -279,23 +279,35 @@ class MainWindow(QMainWindow):
                 next_instruction = self.compiled_instructions[next_instruction_index]
                 line_num = next_instruction.line_number
                 self.code_editor.highlight_current_line(line_num)
+                return True  # Continue execution
             else:
                 # Program counter is beyond our instructions - program completed
                 self.code_editor.clear_highlight()
                 self.console.append("✓ Program completed")
+                self.cpu.is_halted = True  # Halt the CPU
+                return False  # Return False to indicate execution should stop
                 
         except Exception as e:
             self.console.append(f"✗ Execution error: {str(e)}")
+            return False  # Return False to indicate execution should stop
             
     def run_all(self):
         """Run all remaining instructions"""
         max_instructions = 10000  # Prevent infinite loops
         count = 0
         
-        while (self.current_instruction_index < len(self.compiled_instructions) and 
-               not self.cpu.is_halted and count < max_instructions):
-            self.step_execution()
-            count += 1
+        # Continue execution until program completes or hits limits
+        while count < max_instructions:
+            # Call step_execution and check if we should continue
+            try:
+                should_continue = self.step_execution()
+                if not should_continue:
+                    # Program completed normally or encountered an error
+                    break
+                count += 1
+            except Exception as e:
+                self.console.append(f"✗ Execution error during run all: {str(e)}")
+                break
             
         if count >= max_instructions:
             self.console.append("⚠ Execution stopped: maximum instruction limit reached")
