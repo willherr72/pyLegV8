@@ -187,6 +187,38 @@ class HelpDialog(QDialog):
                     "description": "Bitwise XOR of two registers",
                     "example": "EOR X1, X2, X3  // X1 = X2 ^ X3",
                     "operation": "Rd = Rn XOR Rm"
+                },
+                "ANDI": {
+                    "syntax": "ANDI Rd, Rn, #imm",
+                    "description": "Bitwise AND with immediate",
+                    "example": "ANDI X1, X2, #255  // X1 = X2 & 255",
+                    "operation": "Rd = Rn AND immediate"
+                },
+                "ORRI": {
+                    "syntax": "ORRI Rd, Rn, #imm",
+                    "description": "Bitwise OR with immediate",
+                    "example": "ORRI X1, X2, #15  // X1 = X2 | 15",
+                    "operation": "Rd = Rn OR immediate"
+                },
+                "EORI": {
+                    "syntax": "EORI Rd, Rn, #imm",
+                    "description": "Bitwise XOR with immediate",
+                    "example": "EORI X1, X2, #255  // X1 = X2 ^ 255",
+                    "operation": "Rd = Rn XOR immediate"
+                }
+            },
+            "Shift Instructions": {
+                "LSL": {
+                    "syntax": "LSL Rd, Rn, Rm",
+                    "description": "Logical shift left",
+                    "example": "LSL X1, X2, X3  // X1 = X2 << X3",
+                    "operation": "Rd = Rn << Rm"
+                },
+                "LSR": {
+                    "syntax": "LSR Rd, Rn, Rm",
+                    "description": "Logical shift right",
+                    "example": "LSR X1, X2, X3  // X1 = X2 >> X3",
+                    "operation": "Rd = Rn >> Rm"
                 }
             },
             "Data Transfer Instructions": {
@@ -213,6 +245,18 @@ class HelpDialog(QDialog):
                     "description": "Store word (32-bit) to memory",
                     "example": "STURW X1, [X2, #4]  // memory[X2 + 4] = X1 (32-bit)",
                     "operation": "Memory[Rn + offset] = Rt (32-bit)"
+                },
+                "LDURB": {
+                    "syntax": "LDURB Rt, [Rn, #offset]",
+                    "description": "Load byte (8-bit) from memory",
+                    "example": "LDURB X1, [X2, #1]  // X1 = memory[X2 + 1] (8-bit)",
+                    "operation": "Rt = Memory[Rn + offset] (8-bit)"
+                },
+                "STURB": {
+                    "syntax": "STURB Rt, [Rn, #offset]",
+                    "description": "Store byte (8-bit) to memory",
+                    "example": "STURB X1, [X2, #1]  // memory[X2 + 1] = X1 (8-bit)",
+                    "operation": "Memory[Rn + offset] = Rt (8-bit)"
                 }
             },
             "Branch Instructions": {
@@ -257,6 +301,18 @@ class HelpDialog(QDialog):
                     "description": "Branch if greater than or equal (signed)",
                     "example": "B.GE positive  // Jump if last comparison was >= 0",
                     "operation": "if (N == V) PC = label"
+                },
+                "B.GT": {
+                    "syntax": "B.GT label",
+                    "description": "Branch if greater than (signed)",
+                    "example": "B.GT positive  // Jump if last comparison was > 0",
+                    "operation": "if (!Z && N == V) PC = label"
+                },
+                "B.LE": {
+                    "syntax": "B.LE label",
+                    "description": "Branch if less than or equal (signed)",
+                    "example": "B.LE nonpositive  // Jump if last comparison was <= 0",
+                    "operation": "if (Z || N != V) PC = label"
                 }
             }
         }
@@ -501,6 +557,11 @@ Logical:
   AND  Rd, Rn, Rm     # Rd = Rn & Rm
   ORR  Rd, Rn, Rm     # Rd = Rn | Rm
   EOR  Rd, Rn, Rm     # Rd = Rn ^ Rm
+  ANDI Rd, Rn, #imm   # Rd = Rn & immediate
+  ORRI Rd, Rn, #imm   # Rd = Rn | immediate
+  EORI Rd, Rn, #imm   # Rd = Rn ^ immediate
+
+Shift:
   LSL  Rd, Rn, Rm     # Rd = Rn << Rm
   LSR  Rd, Rn, Rm     # Rd = Rn >> Rm
 
@@ -519,9 +580,9 @@ Branches:
   B.EQ   label          # Branch if equal (after SUBS/SUBIS)
   B.NE   label          # Branch if not equal
   B.LT   label          # Branch if less than (signed)
-  B.GE   label          # Branch if greater/equal (signed)
-  B.GT   label          # Branch if greater than (signed)
   B.LE   label          # Branch if less/equal (signed)
+  B.GT   label          # Branch if greater than (signed)
+  B.GE   label          # Branch if greater/equal (signed)
 
 ADDRESSING MODES:
   [Rn]         # Base register only
