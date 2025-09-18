@@ -266,6 +266,18 @@ class HelpDialog(QDialog):
                     "example": "B loop  // Jump to 'loop' label",
                     "operation": "PC = label address"
                 },
+                "BL": {
+                    "syntax": "BL label",
+                    "description": "Branch and link - call a function",
+                    "example": "BL my_function  // Call function, save return address in LR (X30)",
+                    "operation": "LR = PC + 4, PC = label address"
+                },
+                "BR": {
+                    "syntax": "BR Xn",
+                    "description": "Branch to register - return from function",
+                    "example": "BR X30  // Return from function using Link Register",
+                    "operation": "PC = Xn"
+                },
                 "CBZ": {
                     "syntax": "CBZ Rt, label",
                     "description": "Branch if register is zero",
@@ -456,9 +468,55 @@ first_larger:
 
 end:
     STUR X3, [X28, #0] // Store maximum value"""
+                },
+                "Function Call": {
+                    "description": "Function calls using BL (Branch and Link) and BR (Branch Register)",
+                    "code": """// Function call demonstration with BL and BR
+// Shows how to call functions and return properly
+
+// Main program
+ADDI X0, XZR, #10        // Load 10 into X0
+ADDI X1, XZR, #5         // Load 5 into X1
+BL   add_function        // Call function - saves return address in LR (X30)
+MOVZ X2, #999            // This executes AFTER function returns
+
+// Program end
+end_program:
+    STUR X0, [X28, #0]   // Store result at memory location
+    STUR X2, [X28, #8]   // Store X2 to verify it was set
+    B end_program        // Infinite loop to end
+
+// Function that adds two numbers
+add_function:
+    ADD  X0, X0, X1      // X0 = X0 + X1 (10 + 5 = 15)
+    MOVZ X3, #42         // Mark that function executed  
+    BR   X30             // Return to saved address in LR
+
+// Expected results:
+// X0 = 15 (sum of 10 + 5)
+// X2 = 999 (proves function returned correctly)
+// X3 = 42 (proves function executed)"""
                 }
             },
             "Branch Examples": {
+                "Function Call Basic": {
+                    "description": "Simple BL and BR function call example",
+                    "code": """// Basic BL and BR example
+// Demonstrates the simplest function call
+
+ADDI X0, XZR, #100   // Load initial value
+BL   my_function     // Call function 
+ADDI X0, X0, #1      // This runs after function returns
+STUR X0, [X28, #0]   // Store final result
+B    end             // Jump to end to prevent looping
+
+my_function:
+    ADDI X0, X0, #50 // Add 50 to X0 (X0 becomes 150)
+    BR X30           // Return using Link Register
+
+end:
+    B end            // Infinite loop to halt program"""
+                },
                 "Simple Branch": {
                     "description": "Basic unconditional and conditional branches",
                     "code": """// Simple branching example
@@ -575,6 +633,8 @@ Memory:
 
 Branches:
   B      label          # Unconditional branch
+  BL     label          # Branch and link (function call)
+  BR     Xn             # Branch to register (function return)
   CBZ    Rt, label      # Branch if register == 0
   CBNZ   Rt, label      # Branch if register != 0
   B.EQ   label          # Branch if equal (after SUBS/SUBIS)
@@ -608,6 +668,8 @@ TIPS:
 - Doubleword operations require 8-byte alignment
 - Use SUBS/SUBIS to set flags for conditional branches
 - Labels must start with letter/underscore, followed by letters/numbers/underscores
+- Function calls: Use BL to call, BR X30 to return
+- BL automatically saves return address in Link Register (X30)
 """
         
         self.quick_ref_text.setPlainText(quick_ref)

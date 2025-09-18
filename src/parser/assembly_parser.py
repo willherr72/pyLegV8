@@ -6,8 +6,8 @@ Parses LEGv8 assembly code into instruction objects
 import re
 from typing import List, Dict, Optional, Tuple
 from core.instruction import (Instruction, RTypeInstruction, ITypeInstruction, 
-                              DTypeInstruction, BTypeInstruction, CBTypeInstruction,
-                              CondBTypeInstruction, InstructionType)
+                              DTypeInstruction, BTypeInstruction, BLTypeInstruction,
+                              BRTypeInstruction, CBTypeInstruction, CondBTypeInstruction, InstructionType)
 
 
 class ParseError(Exception):
@@ -41,6 +41,14 @@ class AssemblyParser:
         
         self.b_type_instructions = {
             'B'
+        }
+        
+        self.bl_type_instructions = {
+            'BL'
+        }
+        
+        self.br_type_instructions = {
+            'BR'
         }
         
         self.cb_type_instructions = {
@@ -167,6 +175,10 @@ class AssemblyParser:
             return self.parse_d_type(mnemonic, operands, line_number)
         elif mnemonic in self.b_type_instructions:
             return self.parse_b_type(mnemonic, operands, line_number)
+        elif mnemonic in self.bl_type_instructions:
+            return self.parse_bl_type(mnemonic, operands, line_number)
+        elif mnemonic in self.br_type_instructions:
+            return self.parse_br_type(mnemonic, operands, line_number)
         elif mnemonic in self.cb_type_instructions:
             return self.parse_cb_type(mnemonic, operands, line_number)
         else:
@@ -262,6 +274,25 @@ class AssemblyParser:
             raise ParseError(f"Invalid label reference: {target_label}", line_number)
             
         return BTypeInstruction(mnemonic, target_label, line_number)
+        
+    def parse_bl_type(self, mnemonic: str, operands: List[str], line_number: int) -> BLTypeInstruction:
+        """Parse BL-type instruction (branch and link)"""
+        if len(operands) != 1:
+            raise ParseError(f"BL-type instruction {mnemonic} requires 1 operand", line_number)
+            
+        target_label = operands[0]
+        if not self.label_ref_pattern.match(target_label):
+            raise ParseError(f"Invalid label reference: {target_label}", line_number)
+            
+        return BLTypeInstruction(mnemonic, target_label, line_number)
+        
+    def parse_br_type(self, mnemonic: str, operands: List[str], line_number: int) -> BRTypeInstruction:
+        """Parse BR-type instruction (branch to register)"""
+        if len(operands) != 1:
+            raise ParseError(f"BR-type instruction {mnemonic} requires 1 operand", line_number)
+            
+        register = self.parse_register(operands[0], line_number)
+        return BRTypeInstruction(mnemonic, register, line_number)
         
     def parse_cb_type(self, mnemonic: str, operands: List[str], line_number: int) -> CBTypeInstruction:
         """Parse CB-type instruction (conditional branch on zero/not zero)"""
