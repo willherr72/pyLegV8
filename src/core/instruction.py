@@ -14,6 +14,8 @@ class InstructionType(Enum):
     I_TYPE = "I"  # Immediate type (ADDI, SUBI, etc.)
     D_TYPE = "D"  # Data transfer type (LDUR, STUR)
     B_TYPE = "B"  # Branch type (B)
+    BL_TYPE = "BL"  # Branch and link type (BL)
+    BR_TYPE = "BR"  # Branch register type (BR)
     CB_TYPE = "CB"  # Conditional branch type (CBZ, CBNZ)
     COND_B_TYPE = "COND_B"  # Conditional branch with flags (B.EQ, B.NE, etc.)
 
@@ -192,6 +194,58 @@ class BTypeInstruction(Instruction):
             
         # Set PC to target address
         cpu.pc = self.target_address
+        
+        return {
+            "pc_modified": True,
+            "register_changes": [],
+            "memory_changes": []
+        }
+
+
+class BLTypeInstruction(Instruction):
+    """BL-type instructions (branch and link)"""
+    
+    def __init__(self, mnemonic: str, target_label: str, line_number: int = 0):
+        super().__init__(mnemonic, [target_label], line_number)
+        self.target_label = target_label
+        self.target_address = None  # Will be resolved during parsing
+        self.instruction_type = InstructionType.BL_TYPE
+        
+    def execute(self, cpu) -> Dict[str, Any]:
+        if self.target_address is None:
+            raise ValueError(f"Branch target '{self.target_label}' not resolved")
+            
+        result_changes = []
+        
+        # Save return address (PC + 4) to Link Register (LR = X30)
+        return_address = cpu.pc + 4
+        if cpu.registers.write(30, return_address):  # LR is X30
+            result_changes.append(30)
+        
+        # Set PC to target address
+        cpu.pc = self.target_address
+        
+        return {
+            "pc_modified": True,
+            "register_changes": result_changes,
+            "memory_changes": []
+        }
+
+
+class BRTypeInstruction(Instruction):
+    """BR-type instructions (branch to register)"""
+    
+    def __init__(self, mnemonic: str, register: int, line_number: int = 0):
+        super().__init__(mnemonic, [f"X{register}"], line_number)
+        self.register = register
+        self.instruction_type = InstructionType.BR_TYPE
+        
+    def execute(self, cpu) -> Dict[str, Any]:
+        # Get target address from register
+        target_address = cpu.registers.read(self.register)
+        
+        # Set PC to target address
+        cpu.pc = target_address
         
         return {
             "pc_modified": True,
