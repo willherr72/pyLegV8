@@ -25,6 +25,12 @@ A Python-based LEGv8 Assembly Simulator with GUI, inspired by the [ARM Universit
 - Run all instructions at once
 - Reset simulation state
 
+✅ **Function Call Support**
+- BL (Branch and Link) instruction for function calls
+- BR (Branch Register) instruction for function returns
+- Automatic Link Register (X30) management
+- Proper function call/return mechanism
+
 ✅ **Comprehensive Help System**
 - Complete LEGv8 instruction reference
 - Example programs with explanations
@@ -66,6 +72,8 @@ A Python-based LEGv8 Assembly Simulator with GUI, inspired by the [ARM Universit
 
 ### Branch Instructions
 - `B label` - Unconditional branch
+- `BL label` - Branch and link (function call, saves return address in X30)
+- `BR Xn` - Branch to register (function return, typically `BR X30`)
 - `CBZ Rt, label` - Branch if register is zero
 - `CBNZ Rt, label` - Branch if register is not zero
 - `B.EQ label` - Branch if equal (Z flag set)
@@ -101,13 +109,34 @@ uv run python src/main.py
 4. **Monitor State**: Watch registers and memory update in real-time
 5. **Get Help**: Use the Help menu for instruction reference and examples
 
-### Example Program
+### Example Programs
+
+#### Basic Arithmetic
 ```assembly
 // Simple arithmetic example
 ADDI X1, XZR, #10    // Load 10 into X1
 ADDI X2, XZR, #20    // Load 20 into X2
 ADD  X3, X1, X2      // X3 = X1 + X2 = 30
 STUR X3, [X28, #0]   // Store result to memory
+```
+
+#### Function Call Example
+```assembly
+// Function call demonstration
+ADDI X0, XZR, #10        // Load 10 into X0
+ADDI X1, XZR, #5         // Load 5 into X1
+BL   add_function        // Call function - saves return address in X30
+MOVZ X2, #999            // This executes after function returns
+B    end                 // Jump to end
+
+add_function:
+    ADD  X0, X0, X1      // X0 = X0 + X1 (15)
+    MOVZ X3, #42         // Mark that function executed
+    BR   X30             // Return using Link Register
+
+end:
+    STUR X0, [X28, #0]   // Store result (15)
+    STUR X2, [X28, #8]   // Store verification (999)
 ```
 
 ## Project Structure
@@ -146,15 +175,20 @@ This simulator is designed as a learning tool for:
 - Visualizing program execution step-by-step
 - Learning assembly programming concepts
 - Exploring computer architecture fundamentals
+- Understanding function calls and the call stack
+- Learning branch and link mechanisms in ARM assembly
 
 ## Future Enhancements
 
-- [ ] Branch and conditional instructions (B, BR, CBZ, CBNZ)
+- [x] ~~Branch and conditional instructions (B, BR, CBZ, CBNZ)~~ ✅ **Completed**
+- [x] ~~Function call support (BL, BR)~~ ✅ **Completed**
 - [ ] Visual datapath display
-- [ ] File I/O for assembly programs
 - [ ] Debugging breakpoints
 - [ ] Performance metrics and cycle counting
 - [ ] Export execution traces
+- [ ] Advanced instruction support (multiplication, division)
+- [ ] Stack frame visualization
+- [ ] Memory region management (stack, heap, data segments)
 
 ## License
 
