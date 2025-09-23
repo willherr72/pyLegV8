@@ -132,6 +132,12 @@ class HelpDialog(QDialog):
                     "example": "SUBS X1, X2, X3  // X1 = X2 - X3, set flags",
                     "operation": "Rd = Rn - Rm (with flags)"
                 },
+                "MUL": {
+                    "syntax": "MUL Rd, Rn, Rm",
+                    "description": "Multiply two registers",
+                    "example": "MUL X1, X2, X3  // X1 = X2 * X3",
+                    "operation": "Rd = Rn * Rm"
+                },
                 "ADDI": {
                     "syntax": "ADDI Rd, Rn, #imm",
                     "description": "Add immediate to register",
@@ -326,6 +332,38 @@ class HelpDialog(QDialog):
                     "example": "B.LE nonpositive  // Jump if last comparison was <= 0",
                     "operation": "if (Z || N != V) PC = label"
                 }
+            },
+            "Condition Flags": {
+                "N Flag": {
+                    "syntax": "N (Negative Flag)",
+                    "description": "Set when result is negative (bit 63 = 1)",
+                    "example": "SUBS X1, X2, X3  // Sets N if X2 - X3 < 0",
+                    "operation": "N = 1 if result < 0, else 0"
+                },
+                "Z Flag": {
+                    "syntax": "Z (Zero Flag)",
+                    "description": "Set when result equals zero",
+                    "example": "SUBS X1, X2, X2  // Sets Z since X2 - X2 = 0",
+                    "operation": "Z = 1 if result == 0, else 0"
+                },
+                "V Flag": {
+                    "syntax": "V (Overflow Flag)",
+                    "description": "Set when signed arithmetic overflow occurs",
+                    "example": "ADDS X1, X2, X3  // Sets V on signed overflow",
+                    "operation": "V = 1 if signed overflow, else 0 (simplified)"
+                },
+                "C Flag": {
+                    "syntax": "C (Carry Flag)",
+                    "description": "Set when unsigned arithmetic produces carry",
+                    "example": "ADDS X1, X2, X3  // Sets C on unsigned overflow",
+                    "operation": "C = 1 if unsigned carry, else 0 (simplified)"
+                },
+                "Flag Usage": {
+                    "syntax": "Using Flags with Branches",
+                    "description": "Conditional branches test flag combinations",
+                    "example": "SUBS X1, X2, X3; B.EQ equal  // Branch if X2 == X3",
+                    "operation": "Flag-setting instructions: ADDS, SUBS, ADDIS, SUBIS"
+                }
             }
         }
         
@@ -391,6 +429,26 @@ EOR  X5, X1, X2      // X5 = X1 ^ X2 = 60  (0x3C)
 STUR X3, [X28, #0]   // Store AND result
 STUR X4, [X28, #8]   // Store OR result
 STUR X5, [X28, #16]  // Store XOR result"""
+                },
+                "Multiplication": {
+                    "description": "Multiplication operations with MUL instruction",
+                    "code": """// Multiplication example
+// Calculate area and factorial-like operations
+
+ADDI X1, XZR, #6     // Width = 6
+ADDI X2, XZR, #8     // Height = 8
+MUL  X3, X1, X2      // Area = Width * Height = 48
+
+// Calculate 5 * 3 * 2  
+ADDI X4, XZR, #5     // Load 5
+ADDI X5, XZR, #3     // Load 3  
+ADDI X6, XZR, #2     // Load 2
+MUL  X7, X4, X5      // X7 = 5 * 3 = 15
+MUL  X8, X7, X6      // X8 = 15 * 2 = 30
+
+// Store results
+STUR X3, [X28, #0]   // Store area (48)
+STUR X8, [X28, #8]   // Store calculation result (30)"""
                 }
             },
             "Advanced Examples": {
@@ -556,16 +614,50 @@ ADDI X3, XZR, #1     // Constant 1 for comparison
 
 factorial_loop:
     CBZ X1, done         // If X1 == 0, we're done
-    MUL X2, X2, X1       // result *= X1 (Note: MUL not implemented yet, use multiple adds)
+    MUL X2, X2, X1       // result *= X1 (using MUL instruction)
     SUBI X1, X1, #1      // X1--
     B factorial_loop     // Continue loop
 
 done:
-    STUR X2, [X28, #0]   // Store factorial result
+    STUR X2, [X28, #0]   // Store factorial result"""
+                },
+                "Flag Usage Example": {
+                    "description": "Demonstrates condition flags with SUBS and conditional branches",
+                    "code": """// Flag usage with conditional branches
+// Shows how flags are set and used for decision making
 
-// Simplified version without MUL:
-// This example shows the structure but would need
-// multiple ADD operations to simulate multiplication"""
+ADDI X1, XZR, #10    // Load 10 
+ADDI X2, XZR, #20    // Load 20
+ADDI X3, XZR, #10    // Load 10 (same as X1)
+
+// Compare X1 and X2 (10 vs 20)
+SUBS X4, X1, X2      // X4 = X1 - X2 = -10, sets N flag (negative)
+B.LT  x1_less        // Branch if X1 < X2 (N≠V, true here)
+B.GE  x1_greater     // This won't execute
+
+x1_less:
+    MOVZ X5, #1      // X5 = 1 (X1 was less than X2)
+    B continue
+
+x1_greater:
+    MOVZ X5, #2      // X5 = 2 (X1 was greater/equal to X2)
+
+continue:
+// Compare X1 and X3 (10 vs 10)  
+SUBS X6, X1, X3      // X6 = X1 - X3 = 0, sets Z flag (zero)
+B.EQ  equal          // Branch if equal (Z=1, true here)
+B.NE  not_equal      // This won't execute
+
+equal:
+    MOVZ X7, #42     // X7 = 42 (X1 equals X3)
+    B end
+
+not_equal:
+    MOVZ X7, #99     // X7 = 99 (X1 not equal to X3)
+
+end:
+    STUR X5, [X28, #0]  // Store first comparison result (1)
+    STUR X7, [X28, #8]  // Store second comparison result (42)"""
                 }
             }
         }
@@ -604,6 +696,7 @@ Arithmetic:
   ADDS  Rd, Rn, Rm     # Rd = Rn + Rm (with flags)
   SUB   Rd, Rn, Rm     # Rd = Rn - Rm
   SUBS  Rd, Rn, Rm     # Rd = Rn - Rm (with flags)
+  MUL   Rd, Rn, Rm     # Rd = Rn * Rm  
   ADDI  Rd, Rn, #imm   # Rd = Rn + immediate
   ADDIS Rd, Rn, #imm   # Rd = Rn + immediate (with flags)
   SUBI  Rd, Rn, #imm   # Rd = Rn - immediate
@@ -643,6 +736,23 @@ Branches:
   B.LE   label          # Branch if less/equal (signed)
   B.GT   label          # Branch if greater than (signed)
   B.GE   label          # Branch if greater/equal (signed)
+
+CONDITION FLAGS:
+  N (Negative)    : Set if result < 0
+  Z (Zero)        : Set if result == 0  
+  V (Overflow)    : Set if signed arithmetic overflow (simplified)
+  C (Carry)       : Set if unsigned carry (simplified)
+  
+Flag-setting instructions:
+  ADDS, SUBS, ADDIS, SUBIS  # Set flags based on result
+
+Conditional branches use flags:
+  B.EQ  # Branch if Z=1 (equal/zero)
+  B.NE  # Branch if Z=0 (not equal/not zero) 
+  B.LT  # Branch if N≠V (less than, signed)
+  B.GE  # Branch if N=V (greater/equal, signed)
+  B.GT  # Branch if Z=0 and N=V (greater than, signed)
+  B.LE  # Branch if Z=1 or N≠V (less/equal, signed)
 
 ADDRESSING MODES:
   [Rn]         # Base register only

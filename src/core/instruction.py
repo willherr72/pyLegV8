@@ -63,6 +63,8 @@ class RTypeInstruction(Instruction):
             result = val_rn | val_rm
         elif self.mnemonic == "EOR":
             result = val_rn ^ val_rm
+        elif self.mnemonic == "MUL":
+            result = val_rn * val_rm
         elif self.mnemonic == "LSL":  # Logical shift left
             result = val_rn << (val_rm & 0x3F)  # Only use bottom 6 bits for shift amount
         elif self.mnemonic == "LSR":  # Logical shift right

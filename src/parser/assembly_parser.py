@@ -24,7 +24,7 @@ class AssemblyParser:
     def __init__(self):
         # Define instruction patterns and types
         self.r_type_instructions = {
-            'ADD', 'SUB', 'ADDS', 'SUBS', 'AND', 'ORR', 'EOR', 'LSL', 'LSR'
+            'ADD', 'SUB', 'ADDS', 'SUBS', 'AND', 'ORR', 'EOR', 'MUL', 'LSL', 'LSR'
         }
         
         self.i_type_instructions = {
