@@ -7,7 +7,8 @@ import re
 from typing import List, Dict, Optional, Tuple
 from core.instruction import (Instruction, RTypeInstruction, ITypeInstruction, 
                               DTypeInstruction, BTypeInstruction, BLTypeInstruction,
-                              BRTypeInstruction, CBTypeInstruction, CondBTypeInstruction, InstructionType)
+                              BRTypeInstruction, CBTypeInstruction, CondBTypeInstruction, 
+                              CMPInstruction, CMPIInstruction, InstructionType)
 
 
 class ParseError(Exception):
@@ -24,7 +25,8 @@ class AssemblyParser:
     def __init__(self):
         # Define instruction patterns and types
         self.r_type_instructions = {
-            'ADD', 'SUB', 'ADDS', 'SUBS', 'AND', 'ORR', 'EOR', 'MUL', 'LSL', 'LSR'
+            'ADD', 'SUB', 'ADDS', 'SUBS', 'AND', 'ORR', 'EOR', 
+            'MUL', 'SMULH', 'UMULH', 'SDIV', 'UDIV', 'LSL', 'LSR'
         }
         
         self.i_type_instructions = {
@@ -49,6 +51,14 @@ class AssemblyParser:
         
         self.br_type_instructions = {
             'BR'
+        }
+        
+        self.cmp_instructions = {
+            'CMP'
+        }
+        
+        self.cmpi_instructions = {
+            'CMPI'
         }
         
         self.cb_type_instructions = {
@@ -179,6 +189,10 @@ class AssemblyParser:
             return self.parse_bl_type(mnemonic, operands, line_number)
         elif mnemonic in self.br_type_instructions:
             return self.parse_br_type(mnemonic, operands, line_number)
+        elif mnemonic in self.cmp_instructions:
+            return self.parse_cmp_type(mnemonic, operands, line_number)
+        elif mnemonic in self.cmpi_instructions:
+            return self.parse_cmpi_type(mnemonic, operands, line_number)
         elif mnemonic in self.cb_type_instructions:
             return self.parse_cb_type(mnemonic, operands, line_number)
         else:
@@ -293,6 +307,26 @@ class AssemblyParser:
             
         register = self.parse_register(operands[0], line_number)
         return BRTypeInstruction(mnemonic, register, line_number)
+        
+    def parse_cmp_type(self, mnemonic: str, operands: List[str], line_number: int) -> CMPInstruction:
+        """Parse CMP instruction (compare two registers)"""
+        if len(operands) != 2:
+            raise ParseError(f"CMP instruction {mnemonic} requires 2 operands", line_number)
+            
+        rn = self.parse_register(operands[0], line_number)
+        rm = self.parse_register(operands[1], line_number)
+        
+        return CMPInstruction(mnemonic, rn, rm, line_number)
+        
+    def parse_cmpi_type(self, mnemonic: str, operands: List[str], line_number: int) -> CMPIInstruction:
+        """Parse CMPI instruction (compare register with immediate)"""
+        if len(operands) != 2:
+            raise ParseError(f"CMPI instruction {mnemonic} requires 2 operands", line_number)
+            
+        rn = self.parse_register(operands[0], line_number)
+        immediate = self.parse_immediate(operands[1], line_number)
+        
+        return CMPIInstruction(mnemonic, rn, immediate, line_number)
         
     def parse_cb_type(self, mnemonic: str, operands: List[str], line_number: int) -> CBTypeInstruction:
         """Parse CB-type instruction (conditional branch on zero/not zero)"""

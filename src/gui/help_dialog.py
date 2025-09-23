@@ -134,9 +134,45 @@ class HelpDialog(QDialog):
                 },
                 "MUL": {
                     "syntax": "MUL Rd, Rn, Rm",
-                    "description": "Multiply two registers",
-                    "example": "MUL X1, X2, X3  // X1 = X2 * X3",
-                    "operation": "Rd = Rn * Rm"
+                    "description": "Multiply two registers (lower 64 bits of 128-bit product)",
+                    "example": "MUL X1, X2, X3  // X1 = lower 64 bits of X2 * X3",
+                    "operation": "Rd = (Rn * Rm) & 0xFFFFFFFFFFFFFFFF"
+                },
+                "SMULH": {
+                    "syntax": "SMULH Rd, Rn, Rm",
+                    "description": "Signed multiply high (upper 64 bits of 128-bit signed product)",
+                    "example": "SMULH X1, X2, X3  // X1 = upper 64 bits of signed X2 * X3",
+                    "operation": "Rd = (signed Rn * signed Rm) >> 64"
+                },
+                "UMULH": {
+                    "syntax": "UMULH Rd, Rn, Rm",
+                    "description": "Unsigned multiply high (upper 64 bits of 128-bit unsigned product)",
+                    "example": "UMULH X1, X2, X3  // X1 = upper 64 bits of unsigned X2 * X3",
+                    "operation": "Rd = (unsigned Rn * unsigned Rm) >> 64"
+                },
+                "SDIV": {
+                    "syntax": "SDIV Rd, Rn, Rm",
+                    "description": "Signed divide (treating operands as signed integers)",
+                    "example": "SDIV X1, X2, X3  // X1 = X2 / X3 (signed division)",
+                    "operation": "Rd = signed Rn / signed Rm (throws error if Rm = 0)"
+                },
+                "UDIV": {
+                    "syntax": "UDIV Rd, Rn, Rm",
+                    "description": "Unsigned divide (treating operands as unsigned integers)",
+                    "example": "UDIV X1, X2, X3  // X1 = X2 / X3 (unsigned division)",
+                    "operation": "Rd = unsigned Rn / unsigned Rm (throws error if Rm = 0)"
+                },
+                "CMP": {
+                    "syntax": "CMP Rn, Rm",
+                    "description": "Compare two registers (sets flags, no result stored)",
+                    "example": "CMP X1, X2  // Compare X1 and X2, set flags for conditional branches",
+                    "operation": "Sets flags based on Rn - Rm (like SUBS but no destination)"
+                },
+                "CMPI": {
+                    "syntax": "CMPI Rn, #imm",
+                    "description": "Compare register with immediate (sets flags, no result stored)",
+                    "example": "CMPI X1, #10  // Compare X1 with 10, set flags for conditional branches",
+                    "operation": "Sets flags based on Rn - immediate (like SUBIS but no destination)"
                 },
                 "ADDI": {
                     "syntax": "ADDI Rd, Rn, #imm",
@@ -527,6 +563,87 @@ first_larger:
 end:
     STUR X3, [X28, #0] // Store maximum value"""
                 },
+                "Advanced Multiplication": {
+                    "description": "128-bit multiplication using MUL, SMULH, and UMULH",
+                    "code": """// Advanced multiplication example
+// Shows 128-bit multiplication with high/low parts
+
+// Test 1: Large unsigned multiplication
+ADDI X1, XZR, #1000  // Load 1000
+MUL  X2, X1, X1      // X2 = lower 64 bits of 1000 * 1000 = 1000000
+UMULH X3, X1, X1     // X3 = upper 64 bits of 1000 * 1000 = 0 (small result)
+
+// Test 2: Very large numbers (using valid immediate ranges)
+MOVZ X4, #1000       // Load 1000 (within immediate range)
+ADDI X15, XZR, #32   // Load shift amount in register
+LSL  X4, X4, X15     // Shift left 32: X4 = 1000 << 32 (very large)
+MOVZ X5, #2000       // Load 2000 
+LSL  X5, X5, X15     // Shift left 32: X5 = 2000 << 32 (very large)
+
+MUL   X6, X4, X5     // X6 = lower 64 bits of large * large
+UMULH X7, X4, X5     // X7 = upper 64 bits (will be non-zero)
+SMULH X8, X4, X5     // X8 = signed upper 64 bits (same for positive numbers)
+
+// Test 3: Signed vs unsigned behavior with "negative" numbers
+// Create a large number that appears negative in signed interpretation
+MOVZ  X9, #1000      // Load 1000 (valid immediate)
+ADDI  X16, XZR, #48  // Load shift amount 48 in register
+LSL   X9, X9, X16    // Shift left 48: MSB=1, appears negative if signed
+ADDI  X10, XZR, #1000 // Multiply by 1000
+
+MUL   X11, X9, X10   // Lower 64 bits (same for signed/unsigned)
+SMULH X12, X9, X10   // Signed high part (negative interpretation)  
+UMULH X13, X9, X10   // Unsigned high part (positive interpretation)
+
+// Store results to compare
+STUR X2, [X28, #0]   // Store lower bits of 1000*1000
+STUR X3, [X28, #8]   // Store upper bits of 1000*1000 (should be 0)
+STUR X6, [X28, #16]  // Store lower bits of large multiplication
+STUR X7, [X28, #24]  // Store unsigned upper bits
+STUR X8, [X28, #32]  // Store signed upper bits (same as unsigned for positive)
+STUR X11, [X28, #40] // Store lower bits
+STUR X12, [X28, #48] // Store signed upper (negative interpretation)
+STUR X13, [X28, #56] // Store unsigned upper (positive interpretation)"""
+                },
+                "Advanced Division": {
+                    "description": "Signed vs unsigned division with SDIV and UDIV",
+                    "code": """// Advanced division example
+// Demonstrates SDIV vs UDIV and remainder calculations
+
+// Simple signed division
+ADDI X1, XZR, #20    // Dividend = 20
+ADDI X2, XZR, #4     // Divisor = 4
+SDIV X3, X1, X2      // X3 = 20 / 4 = 5 (signed division)
+
+// Division with remainder (integer division)
+ADDI X4, XZR, #23    // Dividend = 23
+ADDI X5, XZR, #7     // Divisor = 7
+SDIV X6, X4, X5      // X6 = 23 / 7 = 3 (remainder discarded)
+
+// Calculate actual remainder using modulo formula: a % b = a - (a/b)*b
+MUL  X7, X6, X5      // X7 = (23/7) * 7 = 3 * 7 = 21
+SUB  X8, X4, X7      // X8 = 23 - 21 = 2 (remainder)
+
+// Compare signed vs unsigned division with large numbers  
+// Load a large number that has different signed/unsigned interpretation
+MOVZ X9, #1000       // Load 1000 (valid immediate)
+ADDI X14, XZR, #32   // Load shift amount in register
+LSL  X9, X9, X14     // Shift left 32: make it large
+ADDI X10, XZR, #1000 // Divisor = 1000
+
+SDIV X11, X9, X10    // X11 = signed division
+UDIV X12, X9, X10    // X12 = unsigned division (should be the same for positive)
+
+// Store results
+STUR X3, [X28, #0]   // Store 5 (20/4)
+STUR X6, [X28, #8]   // Store 3 (23/7 quotient)
+STUR X8, [X28, #16]  // Store 2 (23/7 remainder)
+STUR X11, [X28, #24] // Store signed division result
+STUR X12, [X28, #32] // Store unsigned division result
+
+// Note: Division by zero will cause a runtime error
+// Example: SDIV X13, X1, XZR  // This would throw "Division by zero error" """
+                },
                 "Function Call": {
                     "description": "Function calls using BL (Branch and Link) and BR (Branch Register)",
                     "code": """// Function call demonstration with BL and BR
@@ -658,6 +775,57 @@ not_equal:
 end:
     STUR X5, [X28, #0]  // Store first comparison result (1)
     STUR X7, [X28, #8]  // Store second comparison result (42)"""
+                },
+                "CMP and CMPI Examples": {
+                    "description": "Using CMP and CMPI for clean comparisons and conditional branches",
+                    "code": """// CMP and CMPI comparison examples
+// Shows clean comparison without storing intermediate results
+
+ADDI X1, XZR, #15    // Load 15
+ADDI X2, XZR, #20    // Load 20
+
+// Test 1: CMP instruction (compare two registers)
+CMP  X1, X2          // Compare X1 and X2 (15 vs 20), sets flags
+B.LT first_smaller   // Branch if X1 < X2 (should branch)
+MOVZ X3, #999        // This won't execute
+
+first_smaller:
+    MOVZ X3, #1      // X3 = 1 (X1 was less than X2)
+
+// Test 2: CMPI instruction (compare register with immediate)  
+CMPI X1, #15         // Compare X1 with 15 (15 vs 15), sets flags
+B.EQ values_equal    // Branch if equal (should branch)
+MOVZ X4, #888        // This won't execute
+
+values_equal:
+    MOVZ X4, #2      // X4 = 2 (X1 equals 15)
+
+// Test 3: CMPI with different value
+CMPI X2, #25         // Compare X2 with 25 (20 vs 25), sets flags  
+B.LT less_than_25    // Branch if X2 < 25 (should branch)
+MOVZ X5, #777        // This won't execute
+
+less_than_25:
+    MOVZ X5, #3      // X5 = 3 (X2 was less than 25)
+
+// Test 4: CMP for greater than test
+CMP  X2, X1          // Compare X2 and X1 (20 vs 15), sets flags
+B.GT second_greater  // Branch if X2 > X1 (should branch)
+MOVZ X6, #666        // This won't execute
+
+second_greater:
+    MOVZ X6, #4      // X6 = 4 (X2 was greater than X1)
+
+// Store all results
+STUR X3, [X28, #0]   // Store 1 (CMP result)
+STUR X4, [X28, #8]   // Store 2 (CMPI equal result)  
+STUR X5, [X28, #16]  // Store 3 (CMPI less than result)
+STUR X6, [X28, #24]  // Store 4 (CMP greater than result)
+
+// Advantages of CMP/CMPI:
+// - Cleaner code (no intermediate results stored)
+// - Purpose is clear (comparison only)
+// - No register wasted on unused subtraction result"""
                 }
             }
         }
@@ -696,7 +864,13 @@ Arithmetic:
   ADDS  Rd, Rn, Rm     # Rd = Rn + Rm (with flags)
   SUB   Rd, Rn, Rm     # Rd = Rn - Rm
   SUBS  Rd, Rn, Rm     # Rd = Rn - Rm (with flags)
-  MUL   Rd, Rn, Rm     # Rd = Rn * Rm  
+  MUL   Rd, Rn, Rm     # Rd = lower 64-bits of Rn * Rm
+  SMULH Rd, Rn, Rm     # Rd = upper 64-bits of signed Rn * Rm  
+  UMULH Rd, Rn, Rm     # Rd = upper 64-bits of unsigned Rn * Rm
+  SDIV  Rd, Rn, Rm     # Rd = signed Rn / signed Rm
+  UDIV  Rd, Rn, Rm     # Rd = unsigned Rn / unsigned Rm
+  CMP   Rn, Rm         # Compare registers (sets flags only)
+  CMPI  Rn, #imm       # Compare register with immediate (sets flags only)
   ADDI  Rd, Rn, #imm   # Rd = Rn + immediate
   ADDIS Rd, Rn, #imm   # Rd = Rn + immediate (with flags)
   SUBI  Rd, Rn, #imm   # Rd = Rn - immediate
