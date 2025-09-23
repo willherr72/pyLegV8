@@ -48,7 +48,13 @@ A Python-based LEGv8 Assembly Simulator with GUI, inspired by the [ARM Universit
 - `ADDS Rd, Rn, Rm` - Add registers (sets flags)
 - `SUB Rd, Rn, Rm` - Subtract registers  
 - `SUBS Rd, Rn, Rm` - Subtract registers (sets flags)
-- `MUL Rd, Rn, Rm` - Multiply registers
+- `MUL Rd, Rn, Rm` - Multiply registers (lower 64 bits of 128-bit product)
+- `SMULH Rd, Rn, Rm` - Signed multiply high (upper 64 bits of 128-bit signed product)  
+- `UMULH Rd, Rn, Rm` - Unsigned multiply high (upper 64 bits of 128-bit unsigned product)
+- `SDIV Rd, Rn, Rm` - Signed divide (treating operands as signed integers)
+- `UDIV Rd, Rn, Rm` - Unsigned divide (treating operands as unsigned integers)
+- `CMP Rn, Rm` - Compare registers (sets flags only, no result stored)
+- `CMPI Rn, #imm` - Compare register with immediate (sets flags only, no result stored)
 - `ADDI Rd, Rn, #imm` - Add immediate
 - `ADDIS Rd, Rn, #imm` - Add immediate (sets flags)
 - `SUBI Rd, Rn, #imm` - Subtract immediate
@@ -187,8 +193,7 @@ This simulator is designed as a learning tool for:
 - [ ] Debugging breakpoints
 - [ ] Performance metrics and cycle counting
 - [ ] Export execution traces
-- [x] ~~Advanced instruction support (multiplication)~~ ✅ **MUL Completed**
-- [ ] Advanced instruction support (division)
+- [x] ~~Advanced instruction support (multiplication, division)~~ ✅ **MUL, DIV Completed**
 - [ ] Stack frame visualization
 - [ ] Memory region management (stack, heap, data segments)
 

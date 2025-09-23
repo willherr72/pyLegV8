@@ -18,6 +18,8 @@ class InstructionType(Enum):
     BR_TYPE = "BR"  # Branch register type (BR)
     CB_TYPE = "CB"  # Conditional branch type (CBZ, CBNZ)
     COND_B_TYPE = "COND_B"  # Conditional branch with flags (B.EQ, B.NE, etc.)
+    CMP_TYPE = "CMP"  # Compare register type (CMP)
+    CMPI_TYPE = "CMPI"  # Compare immediate type (CMPI)
 
 
 class Instruction(ABC):
@@ -64,7 +66,35 @@ class RTypeInstruction(Instruction):
         elif self.mnemonic == "EOR":
             result = val_rn ^ val_rm
         elif self.mnemonic == "MUL":
-            result = val_rn * val_rm
+            # MUL: Lower 64 bits of 128-bit product
+            # Treat registers as unsigned for multiplication, then mask to 64 bits
+            full_product = (val_rn & 0xFFFFFFFFFFFFFFFF) * (val_rm & 0xFFFFFFFFFFFFFFFF)
+            result = full_product & 0xFFFFFFFFFFFFFFFF  # Lower 64 bits
+        elif self.mnemonic == "SMULH":
+            # SMULH: Upper 64 bits of 128-bit signed product
+            # Convert to signed 64-bit values
+            signed_rn = val_rn if val_rn < 2**63 else val_rn - 2**64
+            signed_rm = val_rm if val_rm < 2**63 else val_rm - 2**64
+            full_product = signed_rn * signed_rm
+            result = (full_product >> 64) & 0xFFFFFFFFFFFFFFFF  # Upper 64 bits
+        elif self.mnemonic == "UMULH":
+            # UMULH: Upper 64 bits of 128-bit unsigned product
+            full_product = (val_rn & 0xFFFFFFFFFFFFFFFF) * (val_rm & 0xFFFFFFFFFFFFFFFF)
+            result = (full_product >> 64) & 0xFFFFFFFFFFFFFFFF  # Upper 64 bits
+        elif self.mnemonic == "SDIV":
+            # SDIV: Signed division
+            if val_rm == 0:
+                raise ValueError("Division by zero error")
+            # Convert to signed 64-bit values
+            signed_rn = val_rn if val_rn < 2**63 else val_rn - 2**64
+            signed_rm = val_rm if val_rm < 2**63 else val_rm - 2**64
+            signed_result = signed_rn // signed_rm
+            result = signed_result & 0xFFFFFFFFFFFFFFFF  # Convert back to unsigned representation
+        elif self.mnemonic == "UDIV":
+            # UDIV: Unsigned division
+            if val_rm == 0:
+                raise ValueError("Division by zero error")
+            result = (val_rn & 0xFFFFFFFFFFFFFFFF) // (val_rm & 0xFFFFFFFFFFFFFFFF)
         elif self.mnemonic == "LSL":  # Logical shift left
             result = val_rn << (val_rm & 0x3F)  # Only use bottom 6 bits for shift amount
         elif self.mnemonic == "LSR":  # Logical shift right
@@ -335,3 +365,52 @@ class CondBTypeInstruction(Instruction):
             return C  # Greater than or equal (unsigned)
         else:
             raise ValueError(f"Unsupported condition: {self.condition}")
+
+
+class CMPInstruction(Instruction):
+    """CMP instruction (compare two registers, sets flags only)"""
+    
+    def __init__(self, mnemonic: str, rn: int, rm: int, line_number: int = 0):
+        super().__init__(mnemonic, [f"X{rn}", f"X{rm}"], line_number)
+        self.rn = rn  # first source register
+        self.rm = rm  # second source register
+        self.instruction_type = InstructionType.CMP_TYPE
+        
+    def execute(self, cpu) -> Dict[str, Any]:
+        val_rn = cpu.registers.read(self.rn)
+        val_rm = cpu.registers.read(self.rm)
+        
+        # Perform subtraction to set flags (like SUBS but don't store result)
+        result = val_rn - val_rm
+        
+        # Set flags based on comparison result
+        cpu.set_flags(result)
+        
+        return {
+            "register_changes": [],  # CMP doesn't write to any register
+            "memory_changes": []
+        }
+
+
+class CMPIInstruction(Instruction):
+    """CMPI instruction (compare register with immediate, sets flags only)"""
+    
+    def __init__(self, mnemonic: str, rn: int, immediate: int, line_number: int = 0):
+        super().__init__(mnemonic, [f"X{rn}", f"#{immediate}"], line_number)
+        self.rn = rn
+        self.immediate = immediate
+        self.instruction_type = InstructionType.CMPI_TYPE
+        
+    def execute(self, cpu) -> Dict[str, Any]:
+        val_rn = cpu.registers.read(self.rn)
+        
+        # Perform subtraction to set flags (like SUBIS but don't store result)
+        result = val_rn - self.immediate
+        
+        # Set flags based on comparison result
+        cpu.set_flags(result)
+        
+        return {
+            "register_changes": [],  # CMPI doesn't write to any register
+            "memory_changes": []
+        }
