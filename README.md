@@ -48,6 +48,7 @@ A Python-based LEGv8 Assembly Simulator with GUI, inspired by the [ARM Universit
 - `ADDS Rd, Rn, Rm` - Add registers (sets flags)
 - `SUB Rd, Rn, Rm` - Subtract registers  
 - `SUBS Rd, Rn, Rm` - Subtract registers (sets flags)
+- `MUL Rd, Rn, Rm` - Multiply registers
 - `ADDI Rd, Rn, #imm` - Add immediate
 - `ADDIS Rd, Rn, #imm` - Add immediate (sets flags)
 - `SUBI Rd, Rn, #imm` - Subtract immediate
@@ -186,7 +187,8 @@ This simulator is designed as a learning tool for:
 - [ ] Debugging breakpoints
 - [ ] Performance metrics and cycle counting
 - [ ] Export execution traces
-- [ ] Advanced instruction support (multiplication, division)
+- [x] ~~Advanced instruction support (multiplication)~~ ✅ **MUL Completed**
+- [ ] Advanced instruction support (division)
 - [ ] Stack frame visualization
 - [ ] Memory region management (stack, heap, data segments)
 

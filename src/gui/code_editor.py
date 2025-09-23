@@ -41,10 +41,10 @@ class LEGv8SyntaxHighlighter(QSyntaxHighlighter):
         
         # Define patterns
         instructions = [
-            'ADD', 'ADDS', 'SUB', 'SUBS', 'AND', 'ORR', 'EOR', 'LSL', 'LSR',
+            'ADD', 'ADDS', 'SUB', 'SUBS', 'MUL', 'AND', 'ORR', 'EOR', 'LSL', 'LSR',
             'ADDI', 'ADDIS', 'SUBI', 'SUBIS', 'ANDI', 'ORRI', 'EORI', 'MOVZ', 'MOVK',
             'LDUR', 'STUR', 'LDURW', 'STURW', 'LDURB', 'STURB',
-            'B', 'CBZ', 'CBNZ'
+            'B', 'BL', 'BR', 'CBZ', 'CBNZ'
         ]
         
         # Add highlighting rules
